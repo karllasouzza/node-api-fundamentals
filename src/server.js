@@ -1,43 +1,25 @@
 import http from "node:http";
-import { randomUUID } from "node:crypto";
 import { json } from "./middlewares/json.js";
-import { Database } from "./database/database.js";
-
-const database = new Database();
+import { routes } from "./routes.js";
+import { extractQueryParams } from "./utils/extract-query-params.js";
 
 const server = http.createServer(async (req, res) => {
   const { method, url } = req;
 
   await json(req, res);
 
-  if (method === "GET" && url === "/users") {
-    const USERS = database.select("users");
+  const route = routes.find(
+    (route) => route.method === method && route.path.test(url),
+  );
 
-    return res
-      .setHeader("Content-Type", "application/json")
-      .end(JSON.stringify(USERS));
-  }
+  if (route) {
+    const { groups } = req.url.match(route.path);
+    const { query, ...params } = groups;
 
-  if (method === "POST" && url === "/users") {
-    const { name, email } = req.body || {};
+    req.params = params;
+    req.query = query ? extractQueryParams(query) : {};
 
-    if (!name || !email) {
-      return res
-        .writeHead(400, { "Content-Type": "application/json" })
-        .end(JSON.stringify({ error: "Name and email are required" }));
-    }
-
-    const user = {
-      id: randomUUID(),
-      name,
-      email,
-    };
-
-    database.insert("users", user);
-
-    return res
-      .writeHead(201, { "Content-Type": "application/json" })
-      .end(JSON.stringify(user));
+    return route.handler(req, res);
   }
 
   res.writeHead(404, { "Content-Type": "text/plain" }).end("Not Found");
