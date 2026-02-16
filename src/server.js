@@ -1,8 +1,19 @@
 import http from "node:http";
 
 const USERS = [];
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   const { method, url } = req;
+
+  const buffers = [];
+  for await (const chunk of req) {
+    buffers.push(chunk);
+  }
+
+  try {
+    req.body = JSON.parse(Buffer.concat(buffers).toString());
+  } catch {
+    req.body = null;
+  }
 
   if (method === "GET" && url === "/users") {
     return res
@@ -11,8 +22,25 @@ const server = http.createServer((req, res) => {
   }
 
   if (method === "POST" && url === "/users") {
-    USERS.push({ id: 1, name: "John Doe", email: "john.doe@example.com" });
-    return res.writeHead(201, { "Content-Type": "application/json" }).end();
+    const { name, email } = req.body || {};
+
+    if (!name || !email) {
+      return res
+        .writeHead(400, { "Content-Type": "application/json" })
+        .end(JSON.stringify({ error: "Name and email are required" }));
+    }
+
+    const user = {
+      id: USERS.length,
+      name,
+      email,
+    };
+
+    USERS.push(user);
+
+    return res
+      .writeHead(201, { "Content-Type": "application/json" })
+      .end(JSON.stringify(user));
   }
 
   res.writeHead(404, { "Content-Type": "text/plain" }).end("Not Found");
