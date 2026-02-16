@@ -6,16 +6,16 @@ const server = http.createServer((req, res) => {
 
   if (method === "GET" && url === "/users") {
     return res
-    .setHeader("Content-Type", "application/json")
-    .end(JSON.stringify(USERS));
+      .setHeader("Content-Type", "application/json")
+      .end(JSON.stringify(USERS));
   }
 
   if (method === "POST" && url === "/users") {
     USERS.push({ id: 1, name: "John Doe", email: "john.doe@example.com" });
-    return res.end("Create a new user");
+    return res.writeHead(201, { "Content-Type": "application/json" }).end();
   }
 
-  res.end("Hello, World!");
+  res.writeHead(404, { "Content-Type": "text/plain" }).end("Not Found");
 });
 
 server.listen(3333, () => {
